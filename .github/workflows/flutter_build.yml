@@ -1,0 +1,39 @@
+name: Build FlowMind AI APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        flutter-version: '3.16.0' # Adjust to desired version
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Build APK
+      run: flutter build apk --debug # Building debug for faster CI/CD testing
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: flowmind-ai-debug-apk
+        path: build/app/outputs/flutter-apk/app-debug.apk
