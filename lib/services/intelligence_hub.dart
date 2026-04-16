@@ -35,7 +35,7 @@ class IntelligenceState {
     String? matchTimeline,
     String? activeNudge,
     bool? autoPilotEnabled,
-    QueueSlot? activeQueueSlot,
+    Object? activeQueueSlot = _sentinel,
   }) {
     return IntelligenceState(
       forecasts: forecasts ?? this.forecasts,
@@ -43,9 +43,11 @@ class IntelligenceState {
       matchTimeline: matchTimeline ?? this.matchTimeline,
       activeNudge: activeNudge ?? this.activeNudge,
       autoPilotEnabled: autoPilotEnabled ?? this.autoPilotEnabled,
-      activeQueueSlot: activeQueueSlot ?? this.activeQueueSlot,
+      activeQueueSlot: activeQueueSlot == _sentinel ? this.activeQueueSlot : (activeQueueSlot as QueueSlot?),
     );
   }
+
+  static const _sentinel = Object();
 }
 
 class IntelligenceHub extends StateNotifier<IntelligenceState> {

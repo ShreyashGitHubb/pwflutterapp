@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -36,11 +37,11 @@ class MapService {
       final intensity = p['intensity'] as double; // 0.0 to 1.0
       return Circle(
         circleId: CircleId(p['id']),
-        center: LatLng(p['lat'], p['lng']),
+        center: LatLng(p['lat'] as double, p['lng'] as double),
         radius: 30 + (intensity * 20),
         fillColor: intensity > 0.7 
-            ? Color(0xFFFF5252).withOpacity(0.4) // High congestion
-            : Color(0xFF00F0FF).withOpacity(0.2), // Safe
+            ? const Color(0xFFFF5252).withOpacity(0.4) // High congestion
+            : const Color(0xFF00F0FF).withOpacity(0.2), // Safe
         strokeWidth: 0,
       );
     }).toSet();

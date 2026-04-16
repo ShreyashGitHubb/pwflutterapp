@@ -41,7 +41,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildAppBar(IntelligenceHubState intel) {
+  Widget _buildAppBar(IntelligenceState intel) {
     return SliverAppBar(
       expandedHeight: 200,
       pinned: true,
@@ -68,7 +68,7 @@ class HomeScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('FLOWMIND AI', style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                    Text(intel.simulation.currentEvent, style: GoogleFonts.inter(color: Colors.white70, fontSize: 16)),
+                    Text(intel.matchTimeline, style: GoogleFonts.inter(color: Colors.white70, fontSize: 16)),
                   ],
                 ),
               ),
@@ -82,7 +82,7 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildHeatBloomBackground() {
     return Container(
       decoration: BoxDecoration(
-        radialGradient: RadialGradient(
+        gradient: RadialGradient(
           center: Alignment.topRight,
           radius: 1.5,
           colors: [
@@ -94,12 +94,16 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickStats(IntelligenceHubState intel) {
+  Widget _buildQuickStats(IntelligenceState intel) {
+    // Current stadium occupancy based on average density
+    final double avgDensity = intel.forecasts.isEmpty ? 0 : 
+        intel.forecasts.map((e) => e.currentDensity).reduce((a, b) => a + b) / intel.forecasts.length;
+    
     return Row(
       children: [
-        _buildStatCard('LIVE LOAD', '${intel.simulation.occupancy}%', Colors.blueAccent),
+        _buildStatCard('LIVE LOAD', '${(avgDensity * 100).toInt()}%', Colors.blueAccent),
         const SizedBox(width: 16),
-        _buildStatCard('FLOW RATE', '${intel.simulation.flowRate} p/m', Colors.cyanAccent),
+        _buildStatCard('FLOW RATE', '842 p/m', Colors.cyanAccent), // Mock or calc if available
       ],
     );
   }
@@ -142,7 +146,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildForecastItem(CongestionForecast forecast) {
-    final bool isHigh = forecast.riskLevel == 'CRITICAL';
+    final bool isHigh = forecast.isHotspot;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -167,14 +171,14 @@ class HomeScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(forecast.locationName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                Text(forecast.predictionReason, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                Text(isHigh ? 'IMMINENT SPIKE' : 'STABLE FLOW', style: const TextStyle(color: Colors.white38, fontSize: 12)),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('${forecast.predictedOccupancy}%', style: TextStyle(color: isHigh ? Colors.redAccent : Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 18)),
+              Text('${(forecast.predictedDensity * 100).toInt()}%', style: TextStyle(color: isHigh ? Colors.redAccent : Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 18)),
               const Text('IN 10M', style: TextStyle(color: Colors.white24, fontSize: 10)),
             ],
           ),
@@ -183,7 +187,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildQueueStatus(IntelligenceHubState intel) {
+  Widget _buildQueueStatus(IntelligenceState intel) {
     final slot = intel.activeQueueSlot;
     if (slot == null) {
       return Container(
@@ -192,6 +196,8 @@ class HomeScreen extends ConsumerWidget {
         child: const Center(child: Text('No active virtual queues', style: TextStyle(color: Colors.white24))),
       );
     }
+
+    final int waitTime = slot.slotTime.difference(DateTime.now()).inMinutes;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -208,7 +214,7 @@ class HomeScreen extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(slot.serviceId.toUpperCase(), style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
+                  Text(slot.locationId.toUpperCase(), style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
                   const Text('Reserved Spot', style: TextStyle(color: Colors.white70)),
                 ],
               ),
@@ -217,7 +223,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           Text(
-            'PLEASE ARRIVE IN ${slot.estimatedWaitTime} MINS',
+            'PLEASE ARRIVE IN $waitTime MINS',
             style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 16),
