@@ -24,13 +24,14 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
-        flutter-version: '3.16.0' # Adjust to desired version
+        # Removing specific version to automatically use the latest stable (e.g. 3.41+)
+        # This ensures compatibility with modern Firebase dependencies requiring Dart 3.4+
 
     - name: Install dependencies
       run: flutter pub get
 
     - name: Build APK
-      run: flutter build apk --debug # Building debug for faster CI/CD testing
+      run: flutter build apk --debug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
