@@ -39,8 +39,8 @@ class MapService {
         center: LatLng(p['lat'], p['lng']),
         radius: 30 + (intensity * 20),
         fillColor: intensity > 0.7 
-            ? const Color(0xFFFF5252).withOpacity(0.4) // High congestion
-            : const Color(0xFF00F0FF).withOpacity(0.2), // Safe
+            ? Color(0xFFFF5252).withOpacity(0.4) // High congestion
+            : Color(0xFF00F0FF).withOpacity(0.2), // Safe
         strokeWidth: 0,
       );
     }).toSet();

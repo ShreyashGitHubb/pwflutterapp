@@ -1,54 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/intelligence_hub.dart';
-import 'package:intl/intl.dart';
+import '../models/congestion_forecast.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(intelligenceHubProvider);
-    final hub = ref.read(intelligenceHubProvider.notifier);
+    final intel = ref.watch(intelligenceHubProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFF0A0E12),
       body: CustomScrollView(
         slivers: [
-          _buildAppBar(context, state.matchTimeline),
+          _buildAppBar(intel),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildAutoPilotToggle(context, state, hub),
-                  const SizedBox(height: 16),
-                  if (state.activeNudge.isNotEmpty) ...[
-                    _buildNudgeCard(context, ref, state.activeNudge),
-                    const SizedBox(height: 24),
-                  ],
-                  if (state.activeQueueSlot != null) ...[
-                    _buildQueueCard(context, state.activeQueueSlot!),
-                    const SizedBox(height: 24),
-                  ],
-                  _buildPulseCard(context, state),
+                  _buildQuickStats(intel),
                   const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Future Hotspots',
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                      const Chip(
-                        label: Text('T + 10m', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                        backgroundColor: Color(0xFF00F0FF),
-                        labelStyle: TextStyle(color: Colors.black),
-                      ),
-                    ],
-                  ),
+                  _buildSectionHeader('PREDICTIVE PULSE', 'T+10m Live Forecast'),
                   const SizedBox(height: 16),
-                  _buildInsightList(state.forecasts, hub),
+                  _buildForecastList(intel.forecasts),
+                  const SizedBox(height: 32),
+                  _buildSectionHeader('INVISIBLE QUEUE', 'Virtual Slot Management'),
+                  const SizedBox(height: 16),
+                  _buildQueueStatus(intel),
+                  const SizedBox(height: 100), // Bottom padding
                 ],
               ),
             ),
@@ -58,75 +41,183 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildAutoPilotToggle(BuildContext context, IntelligenceState state, IntelligenceHub hub) {
+  Widget _buildAppBar(IntelligenceHubState intel) {
+    return SliverAppBar(
+      expandedHeight: 200,
+      pinned: true,
+      backgroundColor: const Color(0xFF0A0E12),
+      flexibleSpace: FlexibleSpaceBar(
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF1A237E), Color(0xFF0A0E12)],
+                ),
+              ),
+            ),
+            _buildHeatBloomBackground(),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('FLOWMIND AI', style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                    Text(intel.simulation.currentEvent, style: GoogleFonts.inter(color: Colors.white70, fontSize: 16)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeatBloomBackground() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: state.autoPilotEnabled ? const Color(0xFF00F0FF).withOpacity(0.1) : Colors.white.withOpacity(0.05),
+        radialGradient: RadialGradient(
+          center: Alignment.topRight,
+          radius: 1.5,
+          colors: [
+            const Color(0xFF00F0FF).withOpacity(0.1),
+            Colors.transparent,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickStats(IntelligenceHubState intel) {
+    return Row(
+      children: [
+        _buildStatCard('LIVE LOAD', '${intel.simulation.occupancy}%', Colors.blueAccent),
+        const SizedBox(width: 16),
+        _buildStatCard('FLOW RATE', '${intel.simulation.flowRate} p/m', Colors.cyanAccent),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: GoogleFonts.inter(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(value, style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+        Text(subtitle, style: GoogleFonts.inter(color: Colors.white38, fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _buildForecastList(List<CongestionForecast> forecasts) {
+    return Column(
+      children: forecasts.map((f) => _buildForecastItem(f)).toList(),
+    );
+  }
+
+  Widget _buildForecastItem(CongestionForecast forecast) {
+    final bool isHigh = forecast.riskLevel == 'CRITICAL';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.03),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: state.autoPilotEnabled ? const Color(0xFF00F0FF) : Colors.white12),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Icon(Icons.auto_awesome_rounded, color: state.autoPilotEnabled ? const Color(0xFF00F0FF) : Colors.white38),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('AI AUTO-PILOT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  Text(
-                    state.autoPilotEnabled ? 'Crowd Management Active' : 'Manual Navigation',
-                    style: TextStyle(fontSize: 10, color: state.autoPilotEnabled ? const Color(0xFF00F0FF) : Colors.white38),
-                  ),
-                ],
-              ),
-            ],
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: (isHigh ? Colors.redAccent : Colors.greenAccent).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(isHigh ? Icons.warning_amber_rounded : Icons.check_circle_outline, color: isHigh ? Colors.redAccent : Colors.greenAccent),
           ),
-          Switch(
-            value: state.autoPilotEnabled,
-            onChanged: (val) => hub.toggleAutoPilot(),
-            activeColor: const Color(0xFF00F0FF),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(forecast.locationName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Text(forecast.predictionReason, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('${forecast.predictedOccupancy}%', style: TextStyle(color: isHigh ? Colors.redAccent : Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 18)),
+              const Text('IN 10M', style: TextStyle(color: Colors.white24, fontSize: 10)),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQueueCard(BuildContext context, dynamic slot) {
+  Widget _buildQueueStatus(IntelligenceHubState intel) {
+    final slot = intel.activeQueueSlot;
+    if (slot == null) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(color: Colors.white.withOpacity(0.03), borderRadius: BorderRadius.circular(24)),
+        child: const Center(child: Text('No active virtual queues', style: TextStyle(color: Colors.white24))),
+      );
+    }
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF673AB7), Color(0xFF512DA8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.deepPurple.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))
-        ],
+        gradient: LinearGradient(colors: [Colors.cyan.withOpacity(0.1), Colors.blue.withOpacity(0.1)]),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.cyan.withOpacity(0.3)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.timer_outlined, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Text('INVISIBLE QUEUE SLOT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1, fontSize: 10)),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(slot.serviceId.toUpperCase(), style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
+                  const Text('Reserved Spot', style: TextStyle(color: Colors.white70)),
+                ],
+              ),
+              const Icon(Icons.qr_code_2, color: Colors.white, size: 40),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 24),
           Text(
-            'Location: ${slot.locationId.toUpperCase()}',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Validated for: ${DateFormat('jm').format(slot.slotTime)}',
+            'PLEASE ARRIVE IN ${slot.estimatedWaitTime} MINS',
             style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 16),
@@ -135,158 +226,11 @@ class HomeScreen extends ConsumerWidget {
             decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
             child: Text(
               'TOKEN: ${slot.queueToken}',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, family: 'Courier'),
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Courier'),
             ),
           )
         ],
       ),
-    );
-  }
-
-  Widget _buildAppBar(BuildContext context, String timeline) {
-    return SliverAppBar(
-      expandedHeight: 140,
-      backgroundColor: Colors.transparent,
-      flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        title: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Stadium Pulse',
-              style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 28),
-            ),
-            Text(
-              timeline,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF00F0FF), fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNudgeCard(BuildContext context, WidgetRef ref, String nudge) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF00F0FF),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.auto_awesome, color: Colors.black),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              nudge,
-              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
-            ),
-          ),
-          IconButton(
-            onPressed: () => ref.read(intelligenceHubProvider.notifier).clearNudge(),
-            icon: const Icon(Icons.close, color: Colors.black),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPulseCard(BuildContext context, IntelligenceState state) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFF171F33),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('ORACLE INSIGHT', style: TextStyle(color: Color(0xFF00F0FF), letterSpacing: 2, fontSize: 10, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Text(
-            state.currentInsight,
-            style: const TextStyle(fontSize: 15, height: 1.4),
-          ),
-          const SizedBox(height: 24),
-          const Divider(color: Colors.white10),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildMiniMetric('LIVE FLOW', 'OPTIMAL', Colors.greenAccent),
-              _buildMiniMetric('NEXT WAVE', '8 MINS', const Color(0xFF00F0FF)),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMiniMetric(String label, String value, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 10)),
-        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
-      ],
-    );
-  }
-
-  Widget _buildInsightList(List forecasts, IntelligenceHub hub) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: forecasts.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final f = forecasts[index];
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF171F33).withOpacity(0.5),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 40,
-                height: 40,
-                child: CircularProgressIndicator(
-                  value: f.predictedDensity,
-                  backgroundColor: Colors.white10,
-                  color: f.isHotspot ? Colors.redAccent : const Color(0xFF00F0FF),
-                  strokeWidth: 3,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(f.locationName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text(
-                      'Predicted Density: ${(f.predictedDensity * 100).toInt()}%',
-                      style: const TextStyle(fontSize: 11, color: Colors.white54),
-                    ),
-                  ],
-                ),
-              ),
-              if (f.isHotspot)
-                TextButton(
-                  onPressed: () => hub.joinQueueManual(f.locationId),
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.redAccent.withOpacity(0.1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: const Text('JOIN QUEUE', style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                ),
-            ],
-          ),
-        );
-      },
     );
   }
 }
